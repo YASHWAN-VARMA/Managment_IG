@@ -5,6 +5,8 @@ const Driver = require("./models/Driver");
 const Vehicle = require("./models/Vehicle");
 const DriverAssignment = require("./models/DriverAssignment");
 const Trip = require("./models/Trip");
+const Advance = require("./models/Advance");
+const FuelEntry = require("./models/FuelEntry");
 const app = express();
 const PORT = 3333;
 let vehicles = [];
@@ -180,6 +182,261 @@ app.post("/trips", async (req, res) => {
         res.status(201).json({
             message: "Trip created successfully",
             trip: savedTrip
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+});
+app.get("/trips", async (req, res) => {
+    try {
+        const trips = await Trip.find()
+            .populate("vehicle", "vehicleNumber model")
+            .populate("driver", "name phone");
+        res.status(200).json({
+            count: trips.length,
+            trips
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+});
+app.put("/trips/:id/complete", async (req, res) => {
+    try {
+        const updatedTrip = await Trip.findByIdAndUpdate(
+            req.params.id,
+            {
+                status: "Completed",
+                endDate: new Date()
+            },
+            {
+                new: true,
+                runValidators: true
+            }
+        );
+        if (!updatedTrip) {
+            return res.status(404).json({
+                message: "Trip not found"
+            });
+        }
+        res.status(200).json({
+            message: "Trip completed successfully",
+            trip: updatedTrip
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+});
+app.put("/trips/:id/cancel", async (req, res) => {
+    try {
+        const trip = await Trip.findByIdAndUpdate(
+            req.params.id,
+            {
+                status: "Cancelled"
+            },
+            {
+                new: true,
+                runValidators: true
+            }
+        );
+        if (!trip) {
+            return res.status(404).json({
+                message: "Trip not found"
+            });
+        }
+        res.status(200).json({
+            message: "Trip cancelled successfully",
+            trip
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+});
+app.get("/trips/:id", async (req, res) => {
+    try {
+        const trip = await Trip.findById(req.params.id)
+            .populate("vehicle", "vehicleNumber model")
+            .populate("driver", "name phone licenseNumber");
+        if (!trip) {
+            return res.status(404).json({
+                message: "Trip not found"
+            });
+        }
+        res.status(200).json({
+            trip
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+});
+app.post("/advances", async (req, res) => {
+    try {
+        const newAdvance = new Advance(req.body);
+
+        const savedAdvance = await newAdvance.save();
+
+        res.status(201).json({
+            message: "Advance recorded successfully",
+            advance: savedAdvance
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+});
+app.get("/advances", async (req, res) => {
+    try {
+        const advances = await Advance.find()
+            .populate("driver", "name phone")
+            .populate("vehicle", "vehicleNumber model")
+            .populate("trip", "startLocation endLocation");
+        res.status(200).json({
+            count: advances.length,
+            advances
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+});
+app.post("/fuel-entries", async (req, res) => {
+    try {
+        const newFuelEntry = new FuelEntry(req.body);
+        const savedFuelEntry = await newFuelEntry.save();
+        res.status(201).json({
+            message: "Fuel entry recorded successfully",
+            fuelEntry: savedFuelEntry
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+});
+app.get("/fuel-entries", async (req, res) => {
+    try {
+        const fuelEntries = await FuelEntry.find()
+            .populate("vehicle", "vehicleNumber model")
+            .populate("driver", "name phone")
+            .populate("trip", "startLocation endLocation");
+
+        res.status(200).json({
+            count: fuelEntries.length,
+            fuelEntries
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+});
+app.get("/vehicles/:vehicleId/fuel-entries", async (req, res) => {
+    try {
+        const fuelEntries = await FuelEntry.find({
+            vehicle: req.params.vehicleId
+        })
+            .populate("vehicle", "vehicleNumber model")
+            .populate("driver", "name phone")
+            .sort({ date: -1 });
+        res.status(200).json({
+            count: fuelEntries.length,
+            fuelEntries
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+});
+app.get("/drivers/:driverId/advances", async (req, res) => {
+    try {
+        const advances = await Advance.find({
+            driver: req.params.driverId
+        })
+            .populate("driver", "name phone")
+            .populate("vehicle", "vehicleNumber model")
+            .populate("trip", "startLocation endLocation")
+            .sort({ date: -1 });
+
+        res.status(200).json({
+            count: advances.length,
+            advances
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+});
+xapp.get("/drivers/:driverId/advance-summary", async (req, res) => {
+    try {
+        const summary = await Advance.aggregate([
+            {
+                $match: {
+                    driver: new (require("mongoose").Types.ObjectId)(
+                        req.params.driverId
+                    )
+                }
+            },
+            {
+                $group: {
+                    _id: "$driver",
+                    totalAdvance: { $sum: "$amount" },
+                    numberOfAdvances: { $sum: 1 }
+                }
+            }
+        ]);
+
+        res.status(200).json({
+            summary: summary[0] || {
+                totalAdvance: 0,
+                numberOfAdvances: 0
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+});
+app.get("/vehicles/:vehicleId/fuel-summary", async (req, res) => {
+    try {
+        const summary = await FuelEntry.aggregate([
+            {
+                $match: {
+                    vehicle: new (require("mongoose").Types.ObjectId)(
+                        req.params.vehicleId
+                    )
+                }
+            },
+            {
+                $group: {
+                    _id: "$vehicle",
+                    totalFuel: { $sum: "$quantity" },
+                    totalExpense: { $sum: "$totalAmount" },
+                    numberOfRefills: { $sum: 1 }
+                }
+            }
+        ]);
+
+        res.status(200).json({
+            summary: summary[0] || {
+                totalFuel: 0,
+                totalExpense: 0,
+                numberOfRefills: 0
+            }
         });
     } catch (error) {
         res.status(500).json({
