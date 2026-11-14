@@ -7,6 +7,7 @@ const DriverAssignment = require("./models/DriverAssignment");
 const Trip = require("./models/Trip");
 const Advance = require("./models/Advance");
 const FuelEntry = require("./models/FuelEntry");
+const User = require("./models/User");
 const app = express();
 const PORT = 3333;
 let vehicles = [];
@@ -436,6 +437,41 @@ app.get("/vehicles/:vehicleId/fuel-summary", async (req, res) => {
                 totalFuel: 0,
                 totalExpense: 0,
                 numberOfRefills: 0
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+});
+app.post("/register", async (req, res) => {
+    try {
+        const { name, email, password, role } = req.body;
+
+        const existingUser = await User.findOne({ email });
+
+        if (existingUser) {
+            return res.status(400).json({
+                message: "Email already registered"
+            });
+        }
+
+        const newUser = new User({
+            name,
+            email,
+            password,
+            role
+        });
+
+        const savedUser = await newUser.save();
+        res.status(201).json({
+            message: "User registered successfully",
+            user: {
+                id: savedUser._id,
+                name: savedUser.name,
+                email: savedUser.email,
+                role: savedUser.role
             }
         });
     } catch (error) {
