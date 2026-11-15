@@ -20,8 +20,8 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ["Admin", "Manager", "Staff"],
-        default: "Staff"
+        enum: ["Admin", "Manager"],
+        default: "Manager"
     }
 }, { timestamps: true });
 userSchema.pre("save", async function () {
