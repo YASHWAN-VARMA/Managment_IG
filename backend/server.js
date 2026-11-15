@@ -8,10 +8,18 @@ const Trip = require("./models/Trip");
 const Advance = require("./models/Advance");
 const FuelEntry = require("./models/FuelEntry");
 const User = require("./models/User");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const app = express();
 const PORT = 3333;
-let vehicles = [];
+const RefreshToken = require("./models/RefreshToken");
+const {
+    generateAccessToken,
+    generateRefreshToken,
+    hashToken
+} = require("./utils/tokenUtils");
 app.use(express.json());
+app.use(cookieParser());
 app.get("/vehicles", async (req, res) => {
     try {
         const vehicles = await Vehicle.find()
@@ -381,7 +389,7 @@ app.get("/drivers/:driverId/advances", async (req, res) => {
         });
     }
 });
-xapp.get("/drivers/:driverId/advance-summary", async (req, res) => {
+app.get("/drivers/:driverId/advance-summary", async (req, res) => {
     try {
         const summary = await Advance.aggregate([
             {
@@ -472,6 +480,48 @@ app.post("/register", async (req, res) => {
                 name: savedUser.name,
                 email: savedUser.email,
                 role: savedUser.role
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        });
+    }
+});
+app.post("/login", async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(401).json({
+                message: "Invalid email or password"
+            });
+        }
+        const isMatch = await bcrypt.compare(
+            password,
+            user.password
+        );
+        if (!isMatch) {
+            return res.status(401).json({
+                message: "Invalid email or password"
+            });
+        }
+        const token = jwt.sign(
+            {
+                id: user._id,
+                role: user.role
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: "90d" }
+        );
+        res.status(200).json({
+            message: "Login successful",
+            token,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role
             }
         });
     } catch (error) {
