@@ -11,8 +11,12 @@ const FuelEntry = require("./models/FuelEntry");
 const User = require("./models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const cloudinary = require("./config/cloudinary");
 const protect = require("./middleware/auth");
 const authorize = require("./middleware/authorize");
+const Document = require("./models/Document");
+const upload = require("./middleware/upload");
+const exportToExcel = require("./utils/excelExport");
 const app = express();
 const PORT = 3333;
 const RefreshToken = require("./models/RefreshToken");
@@ -644,6 +648,335 @@ app.post(
             res.status(500).json({
                 message: error.message
             });
+        }
+    }
+);
+app.post(
+    "/documents",
+    protect,
+    authorize("manage_documents"),
+    upload.single("document"),
+    async (req, res) => {
+        try {
+            console.log("DOCUMENT UPLOAD ROUTE REACHED");
+            console.log("Uploaded file details:", req.file);
+            const {
+                documentName,
+                documentType,
+                vehicle,
+                driver,
+                documentNumber,
+                issueDate,
+                expiryDate
+            } = req.body;
+            console.log("Uploaded file details:", req.file);
+            if (!documentName || !documentType || !req.file) {
+                return res.status(400).json({
+                    message: "Document name, type and file are required"
+                });
+            }
+            if ((!vehicle && !driver) || (vehicle && driver)) {
+                return res.status(400).json({
+                    message: "Provide either a vehicle ID or a driver ID"
+                });
+            }
+            const newDocument = new Document({
+                documentName,
+                documentType,
+                vehicle: vehicle || null,
+                driver: driver || null,
+                documentNumber,
+                issueDate: issueDate || null,
+                expiryDate: expiryDate || null,
+                fileUrl: req.file.path,
+                publicId: req.file.filename,
+                resourceType: "image",
+                format: req.file.originalname.split(".").pop().toLowerCase(),
+                uploadedBy: req.user.id
+            });
+            const savedDocument = await newDocument.save();
+            res.status(201).json({
+                message: "Document uploaded successfully",
+                document: savedDocument
+            });
+        } catch (error) {
+            res.status(500).json({
+                message: error.message
+            });
+        }
+    }
+);
+app.get(
+    "/documents",
+    protect,
+    authorize("manage_documents"),
+    async (req, res) => {
+        try {
+            const documents = await Document.find()
+                .populate("vehicle", "vehicleNumber model")
+                .populate("driver", "name phone")
+                .populate("uploadedBy", "name email")
+                .sort({ createdAt: -1 });
+
+            res.status(200).json({
+                count: documents.length,
+                documents
+            });
+        } catch (error) {
+            res.status(500).json({
+                message: error.message
+            });
+        }
+    }
+);
+app.get(
+    "/documents/expiry-status",
+    protect,
+    authorize("manage_documents"),
+    async (req, res) => {
+        try {
+            const today = new Date();
+            const next30Days = new Date();
+            next30Days.setDate(today.getDate() + 30);
+            const documents = await Document.find({
+                expiryDate: { $ne: null }
+            })
+                .populate("vehicle", "vehicleNumber")
+                .populate("driver", "name phone")
+                .sort({ expiryDate: 1 });
+
+            const expired = documents.filter(
+                doc => new Date(doc.expiryDate) < today
+            );
+            const expiringSoon = documents.filter(
+                doc =>
+                    new Date(doc.expiryDate) >= today &&
+                    new Date(doc.expiryDate) <= next30Days
+            );
+            res.status(200).json({
+                expiredCount: expired.length,
+                expiringSoonCount: expiringSoon.length,
+                expired,
+                expiringSoon
+            });
+        } catch (error) {
+            res.status(500).json({
+                message: error.message
+            });
+        }
+    }
+);
+app.get(
+    "/vehicles/:vehicleId/documents",
+    protect,
+    authorize("manage_documents"),
+    async (req, res) => {
+        try {
+            const documents = await Document.find({
+                vehicle: req.params.vehicleId
+            }).sort({ createdAt: -1 });
+
+            res.status(200).json({
+                count: documents.length,
+                documents
+            });
+        } catch (error) {
+            res.status(500).json({
+                message: error.message
+            });
+        }
+    }
+);
+app.get(
+    "/drivers/:driverId/documents",
+    protect,
+    authorize("manage_documents"),
+    async (req, res) => {
+        try {
+            const documents = await Document.find({
+                driver: req.params.driverId
+            }).sort({ createdAt: -1 });
+
+            res.status(200).json({
+                count: documents.length,
+                documents
+            });
+        } catch (error) {
+            res.status(500).json({
+                message: error.message
+            });
+        }
+    }
+);
+
+app.delete(
+    "/documents/:id",
+    protect,
+    authorize("manage_documents"),
+    async (req, res) => {
+        try {
+            const document = await Document.findById(req.params.id);
+            if (!document) {
+                return res.status(404).json({
+                    message: "Document not found"
+                });
+            }
+            const cloudinaryResult = await cloudinary.uploader.destroy(
+                document.publicId,
+                {
+                    resource_type: document.resourceType || "image"
+                }
+            );
+            if (
+                cloudinaryResult.result !== "ok" &&
+                cloudinaryResult.result !== "not found"
+            ) {
+                return res.status(500).json({
+                    message: "Failed to delete file from Cloudinary"
+                });
+            }
+            await Document.findByIdAndDelete(req.params.id);
+            res.status(200).json({
+                message: "Document and uploaded file deleted successfully"
+            });
+        } catch (error) {
+            res.status(500).json({
+                message: error.message
+            });
+        }
+    }
+);
+app.get(
+    "/documents/:id",
+    protect,
+    authorize("manage_documents"),
+    async (req, res) => {
+        try {
+            const document = await Document.findById(req.params.id)
+                .populate("vehicle", "vehicleNumber model")
+                .populate("driver", "name phone licenseNumber")
+                .populate("uploadedBy", "name email");
+            if (!document) {
+                return res.status(404).json({
+                    message: "Document not found"
+                });
+            }
+            res.status(200).json({ document });
+        } catch (error) {
+            res.status(500).json({
+                message: error.message
+            });
+        }
+    }
+);
+app.get(
+    "/documents/:id/access",
+    protect,
+    authorize("manage_documents"),
+    async (req, res) => {
+        try {
+            const document = await Document.findById(req.params.id);
+            if (!document) {
+                return res.status(404).json({
+                    message: "Document not found"
+                });
+            }
+            if (!document.publicId || !document.format) {
+                return res.status(400).json({
+                    message: "Document file information is incomplete"
+                });
+            }
+            const expiresAt = Math.floor(Date.now() / 1000) + 300;
+            const accessUrl = cloudinary.utils.private_download_url(
+                document.publicId,
+                document.format,
+                {
+                    resource_type: document.resourceType,
+                    type: "authenticated",
+                    expires_at: expiresAt,
+                    attachment: true
+                }
+            );
+            res.status(200).json({
+                message: "Temporary document access generated",
+                accessUrl,
+                expiresAt
+            });
+        } catch (error) {
+            res.status(500).json({
+                message: error.message
+            });
+        }
+    }
+);
+app.get(
+    "/export/vehicles",
+    protect,
+    authorize("view_reports"),
+    async (req, res) => {
+        try {
+            const vehicles = await Vehicle.find()
+                .populate("currentDriver", "name phone")
+                .lean();
+
+            const columns = [
+                { header: "Vehicle Number", key: "vehicleNumber" },
+                { header: "Vehicle Type", key: "vehicleType" },
+                { header: "Model", key: "model" },
+                { header: "Current Driver", key: "driverName" },
+                { header: "Driver Phone", key: "driverPhone" },
+                { header: "Status", key: "status" }
+            ];
+            const rows = vehicles.map(vehicle => ({
+                vehicleNumber: vehicle.vehicleNumber,
+                vehicleType: vehicle.vehicleType,
+                model: vehicle.model,
+                driverName: vehicle.currentDriver?.name || "Unassigned",
+                driverPhone: vehicle.currentDriver?.phone || "",
+                status: vehicle.status
+            }));
+            await exportToExcel(
+                res,
+                "Vehicles",
+                columns,
+                rows,
+                "vehicles"
+            );
+        } catch (error) {
+            res.status(500).json({ message: error.message });
+        }
+    }
+);
+app.get(
+    "/export/drivers",
+    protect,
+    authorize("view_reports"),
+    async (req, res) => {
+        try {
+            const drivers = await Driver.find().lean();
+            const columns = [
+                { header: "Driver Name", key: "name" },
+                { header: "Phone", key: "phone" },
+                { header: "License Number", key: "licenseNumber" },
+                { header: "Address", key: "address" },
+                { header: "Status", key: "status" }
+            ];
+            const rows = drivers.map(driver => ({
+                name: driver.name,
+                phone: driver.phone,
+                licenseNumber: driver.licenseNumber,
+                address: driver.address || "",
+                status: driver.status
+            }));
+            await exportToExcel(
+                res,
+                "Drivers",
+                columns,
+                rows,
+                "drivers"
+            );
+        } catch (error) {
+            res.status(500).json({ message: error.message });
         }
     }
 );
