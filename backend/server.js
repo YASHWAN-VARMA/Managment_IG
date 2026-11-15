@@ -16,14 +16,17 @@ const protect = require("./middleware/auth");
 const authorize = require("./middleware/authorize");
 const Document = require("./models/Document");
 const upload = require("./middleware/upload");
-const exportToExcel = require("./utils/excelExport");
+const {
+    exportToExcel,
+    exportMultipleSheets
+} = require("./utils/excelExport");
 const app = express();
 const PORT = 3333;
 const RefreshToken = require("./models/RefreshToken");
 const {
-    generateAccessToken,
-    generateRefreshToken,
-    hashToken
+  generateAccessToken,
+  generateRefreshToken,
+  hashToken,
 } = require("./utils/tokenUtils");
 app.use(express.json());
 app.use(cookieParser());
@@ -974,6 +977,230 @@ app.get(
                 columns,
                 rows,
                 "drivers"
+            );
+        } catch (error) {
+            res.status(500).json({ message: error.message });
+        }
+    }
+);
+app.get(
+    "/export/trips",
+    protect,
+    authorize("view_reports"),
+    async (req, res) => {
+        try {
+            const trips = await Trip.find()
+                .populate("vehicle", "vehicleNumber")
+                .populate("driver", "name")
+                .lean();
+            const columns = [
+                { header: "Vehicle Number", key: "vehicleNumber" },
+                { header: "Driver Name", key: "driverName" },
+                { header: "From", key: "startLocation" },
+                { header: "To", key: "endLocation" },
+                { header: "Start Date", key: "startDate" },
+                { header: "End Date", key: "endDate" },
+                { header: "Status", key: "status" }
+            ];
+            const rows = trips.map(trip => ({
+                vehicleNumber: trip.vehicle?.vehicleNumber || "",
+                driverName: trip.driver?.name || "",
+                startLocation: trip.startLocation,
+                endLocation: trip.endLocation,
+                startDate: trip.startDate,
+                endDate: trip.endDate || "",
+                status: trip.status
+            }));
+            await exportToExcel(
+                res,
+                "Trips",
+                columns,
+                rows,
+                "trips"
+            );
+        } catch (error) {
+            res.status(500).json({ message: error.message });
+        }
+    }
+);
+app.get(
+    "/export/advances",
+    protect,
+    authorize("view_reports"),
+    async (req, res) => {
+        try {
+            const advances = await Advance.find()
+                .populate("driver", "name phone")
+                .populate("vehicle", "vehicleNumber")
+                .populate("trip", "startLocation endLocation")
+                .lean();
+            const columns = [
+                { header: "Driver Name", key: "driverName" },
+                { header: "Phone", key: "phone" },
+                { header: "Amount", key: "amount" },
+                { header: "Date", key: "date" },
+                { header: "Purpose", key: "purpose" },
+                { header: "Vehicle Number", key: "vehicleNumber" },
+                { header: "Trip", key: "trip" }
+            ];
+            const rows = advances.map(advance => ({
+                driverName: advance.driver?.name || "",
+                phone: advance.driver?.phone || "",
+                amount: advance.amount,
+                date: advance.date,
+                purpose: advance.purpose || "",
+                vehicleNumber: advance.vehicle?.vehicleNumber || "",
+                trip: advance.trip
+                    ? `${advance.trip.startLocation} to ${advance.trip.endLocation}`
+                    : ""
+            }));
+            await exportToExcel(
+                res,
+                "Advances",
+                columns,
+                rows,
+                "advances"
+            );
+        } catch (error) {
+            res.status(500).json({ message: error.message });
+        }
+    }
+);
+app.get(
+    "/export/fuel-entries",
+    protect,
+    authorize("view_reports"),
+    async (req, res) => {
+        try {
+            const fuelEntries = await FuelEntry.find()
+                .populate("vehicle", "vehicleNumber")
+                .populate("driver", "name")
+                .populate("trip", "startLocation endLocation")
+                .lean();
+            const columns = [
+                { header: "Vehicle Number", key: "vehicleNumber" },
+                { header: "Driver Name", key: "driverName" },
+                { header: "Quantity (Litres)", key: "quantity" },
+                { header: "Price Per Litre", key: "pricePerLitre" },
+                { header: "Total Amount", key: "totalAmount" },
+                { header: "Date", key: "date" },
+                { header: "Fuel Station", key: "fuelStation" },
+                { header: "Trip", key: "trip" }
+            ];
+            const rows = fuelEntries.map(entry => ({
+                vehicleNumber: entry.vehicle?.vehicleNumber || "",
+                driverName: entry.driver?.name || "",
+                quantity: entry.quantity,
+                pricePerLitre: entry.pricePerLitre,
+                totalAmount: entry.totalAmount,
+                date: entry.date,
+                fuelStation: entry.fuelStation || "",
+                trip: entry.trip
+                    ? `${entry.trip.startLocation} to ${entry.trip.endLocation}`
+                    : ""
+            }));
+            await exportToExcel(
+                res,
+                "Fuel Entries",
+                columns,
+                rows,
+                "fuel-entries"
+            );
+        } catch (error) {
+            res.status(500).json({ message: error.message });
+        }
+    }
+);
+app.get(
+    "/export/financial-summary",
+    protect,
+    authorize("view_reports"),
+    async (req, res) => {
+        try {
+            const advances = await Advance.find()
+            .populate("driver", "name")
+            .lean();
+            const fuelEntries = await FuelEntry.find()
+                .populate("vehicle", "vehicleNumber")
+                .populate("driver", "name")
+                .lean();
+
+            const totalAdvances = advances.reduce(
+                (sum, item) => sum + item.amount, 0
+            );
+
+            const totalFuelExpense = fuelEntries.reduce(
+                (sum, item) => sum + item.totalAmount, 0
+            );
+            const totalFuelQuantity = fuelEntries.reduce(
+                (sum, item) => sum + item.quantity, 0
+            );
+            const sheets = [
+                {
+                    name: "Overall Summary",
+                    columns: [
+                        { header: "Metric", key: "metric" },
+                        { header: "Value", key: "value" }
+                    ],
+                    rows: [
+                        { metric: "Total Advances", value: totalAdvances },
+                        { metric: "Total Diesel Expense", value: totalFuelExpense },
+                        { metric: "Total Fuel (Litres)", value: totalFuelQuantity },
+                        { metric: "Number of Advances", value: advances.length },
+                        { metric: "Number of Fuel Entries", value: fuelEntries.length }
+                    ]
+                },
+                {
+                    name: "Vehicle Fuel Expenses",
+                    columns: [
+                        { header: "Vehicle Number", key: "vehicleNumber" },
+                        { header: "Fuel Quantity (Litres)", key: "quantity" },
+                        { header: "Total Expense", key: "totalExpense" }
+                    ],
+                    rows: Object.values(
+                        fuelEntries.reduce((result, entry) => {
+                            const vehicleNumber =
+                                entry.vehicle?.vehicleNumber || "Unknown";
+
+                            if (!result[vehicleNumber]) {
+                                result[vehicleNumber] = {
+                                    vehicleNumber,
+                                    quantity: 0,
+                                    totalExpense: 0
+                                };
+                            }
+                            result[vehicleNumber].quantity += entry.quantity;
+                            result[vehicleNumber].totalExpense += entry.totalAmount;
+
+                            return result;
+                        }, {})
+                    )
+                },
+                {
+                    name: "Driver Advances",
+                    columns: [
+                        { header: "Driver Name", key: "driverName" },
+                        { header: "Total Advances", key: "totalAdvances" }
+                    ],
+                    rows: Object.values(
+                        advances.reduce((result, advance) => {
+                            const driverName = advance.driver?.name || "Unknown";
+                            if (!result[driverName]) {
+                                result[driverName] = {
+                                    driverName,
+                                    totalAdvances: 0
+                                };
+                            }
+                            result[driverName].totalAdvances += advance.amount;
+                            return result;
+                        }, {})
+                    )
+                }
+            ];
+            await exportMultipleSheets(
+                res,
+                sheets,
+                "financial-summary"
             );
         } catch (error) {
             res.status(500).json({ message: error.message });

@@ -46,4 +46,51 @@ const exportToExcel = async (res, sheetName, columns, rows, filename) => {
     await workbook.xlsx.write(res);
     res.end();
 };
-module.exports = exportToExcel;
+const exportMultipleSheets = async (res, sheets, filename) => {
+    const workbook = new ExcelJS.Workbook();
+
+    workbook.creator = "Fleet Management System";
+    workbook.created = new Date();
+
+    sheets.forEach(sheet => {
+        const worksheet = workbook.addWorksheet(sheet.name);
+
+        worksheet.columns = sheet.columns;
+        worksheet.addRows(sheet.rows);
+
+        const header = worksheet.getRow(1);
+        header.font = {
+            bold: true,
+            color: { argb: "FFFFFFFF" }
+        };
+
+        header.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FF1F4E78" }
+        };
+
+        worksheet.views = [{ state: "frozen", ySplit: 1 }];
+
+        worksheet.columns.forEach(column => {
+            column.width = 22;
+        });
+    });
+
+    res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}.xlsx"`
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+};
+module.exports = {
+    exportToExcel,
+    exportMultipleSheets
+};
