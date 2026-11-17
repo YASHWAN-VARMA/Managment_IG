@@ -1,0 +1,32 @@
+[
+  {
+    "_id": "6af93f333a0d34b0b54de8e3",
+    "name": "Yash",
+    "email": "admin@example.com",
+    "password": "$2b$10$JILl3ipKWrOayUS6ok/5Hut/A.E/BOsUoDTHkTb8xzAL3Gb3Efnhi",
+    "role": "Admin",
+    "createdAt": "2026-11-15T05:12:19.927Z",
+    "updatedAt": "2026-11-15T16:33:55.415Z",
+    "__v": 0
+  },
+  {
+    "_id": "6af9b8256f5ad5c216ab4b4a",
+    "name": "Father",
+    "email": "father@example.com",
+    "password": "$2b$10$wYsyPV07JNJwlWTPyfI0ouA7Qbq6VEY8wf.KvcLclq9/2Cy/xMqhW",
+    "role": "Manager",
+    "createdAt": "2026-11-15T13:48:21.109Z",
+    "updatedAt": "2026-11-15T13:48:21.109Z",
+    "__v": 0
+  },
+  {
+    "_id": "6af9df5ae548b8a8676698c0",
+    "name": "Test Manager",
+    "email": "testmanager@example.com",
+    "password": "$2b$10$O./vOAph..DvfvdzEuGCC.Q1aBrQnsHjC9lr5jHPXOAvk2ubCTld.",
+    "role": "Manager",
+    "createdAt": "2026-11-15T16:35:38.037Z",
+    "updatedAt": "2026-11-15T16:35:38.037Z",
+    "__v": 0
+  }
+]

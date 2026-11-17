@@ -1,0 +1,35 @@
+[
+  {
+    "_id": "6af8040c33ac616039068881",
+    "name": "Ramesh Kumar",
+    "phone": "9876543210",
+    "licenseNumber": "AP0120260001",
+    "address": "Vijayawada",
+    "status": "Active",
+    "createdAt": "2026-11-14T06:47:40.071Z",
+    "updatedAt": "2026-11-14T06:47:40.071Z",
+    "__v": 0
+  },
+  {
+    "_id": "6af8774ebf2467d8af3fecb7",
+    "name": "Suresh Kumar",
+    "phone": "9876543211",
+    "licenseNumber": "AP0120260002",
+    "address": "Vijayawada",
+    "status": "Active",
+    "createdAt": "2026-11-14T14:59:26.025Z",
+    "updatedAt": "2026-11-14T14:59:26.025Z",
+    "__v": 0
+  },
+  {
+    "_id": "6af89ea2bf2467d8af3fecbd",
+    "name": "Arjun Kumar",
+    "phone": "9876543212",
+    "licenseNumber": "AP0120260003",
+    "address": "Vijayawada",
+    "status": "Active",
+    "createdAt": "2026-11-14T17:47:14.580Z",
+    "updatedAt": "2026-11-14T17:47:14.580Z",
+    "__v": 0
+  }
+]

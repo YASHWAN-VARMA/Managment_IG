@@ -1,0 +1,22 @@
+[
+  {
+    "_id": "6af89e76bf2467d8af3fecbc",
+    "vehicle": "6af89db8bf2467d8af3fecb8",
+    "driver": "6af8040c33ac616039068881",
+    "releasedDate": "2026-11-14T17:48:03.786Z",
+    "assignedDate": "2026-11-14T17:46:30.030Z",
+    "createdAt": "2026-11-14T17:46:30.030Z",
+    "updatedAt": "2026-11-14T17:48:03.787Z",
+    "__v": 0
+  },
+  {
+    "_id": "6af89ed3bf2467d8af3fecbe",
+    "vehicle": "6af89db8bf2467d8af3fecb8",
+    "driver": "6af89ea2bf2467d8af3fecbd",
+    "releasedDate": null,
+    "assignedDate": "2026-11-14T17:48:03.822Z",
+    "createdAt": "2026-11-14T17:48:03.823Z",
+    "updatedAt": "2026-11-14T17:48:03.823Z",
+    "__v": 0
+  }
+]

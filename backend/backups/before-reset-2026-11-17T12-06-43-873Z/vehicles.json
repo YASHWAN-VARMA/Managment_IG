@@ -1,0 +1,13 @@
+[
+  {
+    "_id": "6af89db8bf2467d8af3fecb8",
+    "vehicleNumber": "AP39XY2026",
+    "vehicleType": "Truck",
+    "model": "Tata 407",
+    "status": "Active",
+    "currentDriver": "6af89ea2bf2467d8af3fecbd",
+    "createdAt": "2026-11-14T17:43:20.297Z",
+    "updatedAt": "2026-11-14T17:48:03.854Z",
+    "__v": 0
+  }
+]

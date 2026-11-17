@@ -1,0 +1,51 @@
+{
+  "createdAt": "2026-11-17T12:06:44.022Z",
+  "database": "myproject",
+  "collections": [
+    {
+      "collection": "driverassignments",
+      "count": 2,
+      "file": "driverassignments.json"
+    },
+    {
+      "collection": "advances",
+      "count": 0,
+      "file": "advances.json"
+    },
+    {
+      "collection": "trips",
+      "count": 1,
+      "file": "trips.json"
+    },
+    {
+      "collection": "vehicles",
+      "count": 1,
+      "file": "vehicles.json"
+    },
+    {
+      "collection": "users",
+      "count": 3,
+      "file": "users.json"
+    },
+    {
+      "collection": "refreshtokens",
+      "count": 17,
+      "file": "refreshtokens.json"
+    },
+    {
+      "collection": "fuelentries",
+      "count": 0,
+      "file": "fuelentries.json"
+    },
+    {
+      "collection": "drivers",
+      "count": 3,
+      "file": "drivers.json"
+    },
+    {
+      "collection": "documents",
+      "count": 0,
+      "file": "documents.json"
+    }
+  ]
+}

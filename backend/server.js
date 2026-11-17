@@ -17,6 +17,7 @@ const authorize = require("./middleware/authorize");
 const Document = require("./models/Document");
 const upload = require("./middleware/upload");
 const cors = require("cors");
+const userManagementRoutes = require("./routes/userManagement");
 const {
     exportToExcel,
     exportMultipleSheets
@@ -39,6 +40,7 @@ const {
 } = require("./utils/tokenUtils");
 app.use(express.json());
 app.use(cookieParser());
+app.use("/admin", userManagementRoutes);
 app.get("/vehicles", protect, authorize("manage_vehicles"), async (req, res) => {
     try {
         const vehicles = await Vehicle.find()
@@ -478,7 +480,7 @@ app.post("/login", async (req, res) => {
         const user = await User.findOne({
             email: email.toLowerCase()
         });
-        if (!user) {
+        if (!user || user.isActive === false) {
             return res.status(401).json({
                 message: "Invalid email or password"
             });
@@ -517,7 +519,8 @@ app.post("/login", async (req, res) => {
                 id: user._id,
                 name: user.name,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                phone: user.phone
             }
         });
     } catch (error) {
@@ -553,9 +556,9 @@ app.post("/refresh", async (req, res) => {
             });
         }
         const user = await User.findById(session.user);
-        if (!user) {
+        if (!user || user.isActive === false) {
             return res.status(401).json({
-                message: "User not found."
+                message: "User account is inactive or no longer exists."
             });
         }
         const newAccessToken = generateAccessToken(user);
@@ -625,10 +628,10 @@ app.post(
     authorize("manage_users"),
     async (req, res) => {
         try {
-            const { name, email, password } = req.body;
-            if (!name || !email || !password) {
+            const { name, email, phone, password } = req.body;
+            if (!name || !email || !phone || !password) {
                 return res.status(400).json({
-                    message: "Name, email and password are required"
+                    message: "Name, email, phone and password are required"
                 });
             }
             const existingUser = await User.findOne({
@@ -642,8 +645,10 @@ app.post(
             const newManager = new User({
                 name,
                 email,
+                phone,
                 password,
-                role: "Manager"
+                role: "Manager",
+                isActive: true
             });
             const savedManager = await newManager.save();
             res.status(201).json({

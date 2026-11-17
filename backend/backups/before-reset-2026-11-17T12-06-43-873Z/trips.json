@@ -1,0 +1,15 @@
+[
+  {
+    "_id": "6af8a65e63987e0529497830",
+    "vehicle": "6af89db8bf2467d8af3fecb8",
+    "driver": "6af89ea2bf2467d8af3fecbd",
+    "startLocation": "Vijayawada, Andhra Pradesh",
+    "endLocation": "Hyderabad, Telangana",
+    "startDate": "2026-11-15T08:00:00.000Z",
+    "endDate": null,
+    "status": "Ongoing",
+    "createdAt": "2026-11-14T18:20:14.364Z",
+    "updatedAt": "2026-11-14T18:20:14.364Z",
+    "__v": 0
+  }
+]
