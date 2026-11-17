@@ -367,3 +367,211 @@ td {
 .breadcrumb {
   font-size: 14px !important;
 }
+
+/* Managment_IG readability update — typography only; preserve component dimensions */
+body,
+button,
+input,
+select,
+textarea {
+  font-size: 15px;
+}
+
+.page-header h1 { font-size: 30px !important; }
+.page-header p { font-size: 16px !important; }
+
+/* Navigation and common controls */
+.nav-link,
+.mobile-bottom-nav a,
+.mobile-drawer a,
+.button,
+button,
+.icon-button,
+.logout-button {
+  font-size: 15px;
+}
+
+.nav-caption,
+.breadcrumb,
+.result-count,
+.connection-dot,
+.profile-copy span {
+  font-size: 14px !important;
+}
+
+/* Panel descriptions, labels and supporting copy */
+.panel-heading p,
+.stat-top span,
+.alert-row p,
+.alert-row small,
+.empty-state p,
+.empty-state small,
+.settings-title p,
+.settings-note,
+.detail-list span,
+.detail-list strong,
+.profile-copy span,
+.notice,
+.error-message,
+.login-foot,
+.form-stack label,
+.form-grid label {
+  font-size: 14px !important;
+}
+
+.panel-heading h2,
+.settings-title h2,
+.alert-row strong,
+.cell-strong {
+  font-size: 17px !important;
+}
+
+/* Search, filters and form fields — text only */
+.search-field input,
+.global-search input,
+input,
+select,
+textarea {
+  font-size: 15px !important;
+}
+
+.search-field input::placeholder,
+.global-search input::placeholder,
+input::placeholder,
+textarea::placeholder {
+  font-size: 14px !important;
+}
+
+/* Tables and compact metadata */
+table th,
+table td,
+.table-wrap th,
+.table-wrap td {
+  font-size: 14px !important;
+}
+
+/* Keep status badges readable without changing their padding or dimensions */
+.status-badge,
+.badge,
+.status,
+.eyebrow {
+  font-size: 13px !important;
+}
+
+@media (max-width: 760px) {
+  .page-header h1 { font-size: 27px !important; }
+  .page-header p { font-size: 15px !important; }
+  .nav-link { font-size: 15px !important; }
+  table th, table td { font-size: 14px !important; }}
+
+/* MANAGMENT_IG — Strong readability override */
+body {
+  font-size: 16px !important;
+}
+
+/* Page headings and descriptions */
+.page-header h1 { font-size: 32px !important; }
+.page-header p { font-size: 18px !important; }
+
+/* Search and filters */
+.search-field input,
+.search-field input::placeholder {
+  font-size: 16px !important;
+}
+
+.toolbar select,
+.result-count {
+  font-size: 16px !important;
+}
+
+/* Tables */
+th {
+  font-size: 15px !important;
+}
+
+td {
+  font-size: 16px !important;
+}
+
+/* Empty states */
+.empty-state strong {
+  font-size: 17px !important;
+}
+
+.empty-state span {
+  font-size: 15px !important;
+}
+
+/* Cards and descriptions */
+.panel-heading h2 { font-size: 18px !important; }
+.panel-heading p { font-size: 15px !important; }
+.stat-top { font-size: 16px !important; }
+.stat-card > small { font-size: 15px !important; }
+
+/* Buttons and links */
+.button,
+.text-link,
+.status-badge {
+  font-size: 15px !important;
+}
+
+/* Forms */
+.form-stack label {
+  font-size: 16px !important;
+}
+
+.form-stack input,
+.form-stack select,
+.form-stack textarea {
+  font-size: 16px !important;
+}
+
+/* General secondary information */
+small,
+.caption,
+.table-loading,
+.notice {
+  font-size: 15px !important;
+}
+
+/* Navigation */
+.nav-link {
+  font-size: 17px !important;
+}
+
+.nav-caption {
+  font-size: 14px !important;
+}
+
+/* Align dropdown arrows in all form modals */
+.form-stack select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  box-sizing: border-box;
+  padding: 0 42px 0 12px !important;
+  background-color: #202020 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23c7c7c7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 13px center !important;
+  background-size: 16px !important;
+}
+
+/* Trip action buttons — improved visibility */
+.trip-actions button {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+}
+
+.trip-actions button svg {
+  width: 26px !important;
+  height: 26px !important;
+  stroke-width: 2.2 !important;
+}
+
+.trip-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}

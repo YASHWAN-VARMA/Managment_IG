@@ -41,3 +41,40 @@
   height: 36px;
   width: 190px;
 }
+/* Reports readability update — increase text only, retain existing control sizes */
+.report-section-heading h2,
+.reports-list-heading h2 { font-size: 16px !important; }
+.report-section-heading p,
+.reports-list-heading p { font-size: 14px !important; }
+.period-chip { font-size: 13px !important; }
+.date-range-fields label,
+.year-select-row label { font-size: 13px !important; }
+.date-range-fields input,
+.year-select-row select { font-size: 14px !important; }
+.date-range-separator,
+.report-hint,
+.report-validation,
+.preview-note,
+.selected-range-label,
+.report-card .report-copy small { font-size: 13px !important; }
+
+/* Reports readability */
+.report-section-heading h2,
+.reports-list-heading h2 {
+  font-size: 18px !important;
+}
+
+.report-section-heading p,
+.reports-list-heading p,
+.period-chip,
+.date-range-fields label,
+.year-select-row label,
+.date-range-fields input,
+.year-select-row select,
+.report-card .report-copy small,
+.selected-range-label,
+.report-hint,
+.report-validation,
+.preview-note {
+  font-size: 15px !important;
+}
