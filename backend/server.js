@@ -16,11 +16,20 @@ const protect = require("./middleware/auth");
 const authorize = require("./middleware/authorize");
 const Document = require("./models/Document");
 const upload = require("./middleware/upload");
+const cors = require("cors");
 const {
     exportToExcel,
     exportMultipleSheets
 } = require("./utils/excelExport");
 const app = express();
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 const PORT = 3333;
 const RefreshToken = require("./models/RefreshToken");
 const {
