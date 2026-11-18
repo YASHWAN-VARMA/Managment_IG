@@ -577,3 +577,38 @@ small,
 }
 
 .vehicle-history{margin-top:22px;border-top:1px solid var(--border,#383838);padding-top:16px}.vehicle-history h3{font-size:16px;margin:16px 0 8px}.vehicle-history p{color:var(--muted,#A6A6A6)}.history-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border,#383838)}.history-row span{color:var(--muted,#A6A6A6);text-align:right}
+/* Managment_IG — prevent page-header action buttons from compressing */
+.page-header-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-width: max-content;
+}
+
+.page-header-action > .button {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: max-content;
+  white-space: nowrap;
+  padding-left: 16px;
+  padding-right: 16px;
+  line-height: 1;
+}
+
+.page-header-action > .button svg {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 760px) {
+  .page-header-action {
+    flex-wrap: wrap;
+    min-width: 0;
+    justify-content: flex-start;
+  }
+
+  .page-header-action > .button {
+    min-width: max-content;
+  }
+}

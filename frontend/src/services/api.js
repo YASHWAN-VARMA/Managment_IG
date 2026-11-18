@@ -126,6 +126,8 @@ export function unwrapList(data) {
   for (const key of [
     "vehicles",
     "drivers",
+    "users",
+    "managers",
     "trips",
     "advances",
     "fuelEntries",

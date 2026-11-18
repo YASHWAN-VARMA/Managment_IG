@@ -46,25 +46,67 @@ app.use("/admin", vehicleApprovalRoutes);
 app.use("/", vehicleApprovalRoutes);
 app.get("/vehicles", protect, authorize("manage_vehicles"), async (req, res) => {
     try {
-        const scope = req.user.role === "Admin" ? {} : { $or: [{ manager: req.user.id }, { submittedBy: req.user.id }] };
+        // Admins see the complete fleet. Managers see vehicles assigned to them
+        // plus every request they submitted (including Pending/Rejected ones).
+        const scope = req.user.role === "Admin"
+            ? {}
+            : { $or: [{ manager: req.user.id }, { submittedBy: req.user.id }] };
         const vehicles = await Vehicle.find(scope)
             .populate("currentDriver", "name phone")
-            .populate("manager", "name");
-        res.status(200).json({
-            count: vehicles.length,
-            vehicles: vehicles
-        });
+            .populate("manager", "name")
+            .populate("submittedBy", "name");
+        res.status(200).json({ count: vehicles.length, vehicles });
     } catch (error) {
-        res.status(500).json({
-            message: error.message
-        });
+        console.error("GET /vehicles failed:", error);
+        res.status(500).json({ message: "Unable to load vehicles. Please refresh and try again." });
     }
 });
 
-app.put("/vehicles/:id", protect, authorize("manage_vehicles"), async (req,res)=>{
- try {const v=await Vehicle.findById(req.params.id);if(!v)return res.status(404).json({message:"Vehicle not found."});if(req.user.role!=="Admin"&&String(v.manager||"")!==req.user.id)return res.status(403).json({message:"You cannot edit this vehicle."});
- const allowed={vehicleNumber:req.body.vehicleNumber,vehicleType:req.body.vehicleType,model:req.body.model,status:req.body.status};for(const [k,val] of Object.entries(allowed))if(val!==undefined)v[k]=val;await v.save();res.json({message:"Vehicle updated successfully.",vehicle:v});
- }catch(e){res.status(400).json({message:e.code===11000?"Vehicle registration number already exists.":e.message});}
+app.put("/vehicles/:id", protect, authorize("manage_vehicles"), async (req, res) => {
+  try {
+    const vehicle = await Vehicle.findById(req.params.id);
+    if (!vehicle) return res.status(404).json({ message: "Vehicle not found." });
+
+    const isAdmin = req.user.role === "Admin";
+    if (!isAdmin && String(vehicle.manager || "") !== req.user.id) {
+      return res.status(403).json({ message: "You cannot edit this vehicle." });
+    }
+
+    const allowed = ["vehicleNumber", "vehicleType", "model", "status"];
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) {
+        vehicle[key] = key === "vehicleNumber"
+          ? String(req.body[key]).trim().toUpperCase()
+          : req.body[key];
+      }
+    }
+
+    // Only Admins may assign or transfer vehicle ownership between Managers.
+    if (Object.prototype.hasOwnProperty.call(req.body, "manager")) {
+      if (!isAdmin) {
+        return res.status(403).json({ message: "Only Admin can assign a vehicle to a Manager." });
+      }
+      const managerId = req.body.manager || null;
+      if (managerId) {
+        const manager = await User.findOne({ _id: managerId, role: "Manager", isActive: { $ne: false } }).select("_id");
+        if (!manager) return res.status(400).json({ message: "Select an active Manager account." });
+      }
+      vehicle.manager = managerId;
+      // An Admin assignment makes a previously unassigned/approved vehicle available
+      // to the selected Manager without changing its approval state.
+    }
+
+    await vehicle.save();
+    await vehicle.populate("manager", "name");
+    res.json({ message: "Vehicle updated successfully.", vehicle });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ message: "That vehicle registration number is already registered." });
+    }
+    if (error.name === "CastError") return res.status(400).json({ message: "Invalid vehicle or Manager selection." });
+    console.error("PUT /vehicles/:id failed:", error);
+    res.status(500).json({ message: "Unable to update vehicle." });
+  }
 });
 app.delete("/vehicles/:id", protect, authorize("manage_vehicles"), async (req,res)=>{
  try {const v=await Vehicle.findById(req.params.id);if(!v)return res.status(404).json({message:"Vehicle not found."});if(req.user.role!=="Admin"&&String(v.manager||"")!==req.user.id)return res.status(403).json({message:"You cannot delete this vehicle."});
@@ -104,18 +146,41 @@ app.patch("/drivers/:id/status", protect, authorize("manage_drivers"), async (re
 });
 app.post("/vehicles", protect, authorize("manage_vehicles"), async (req, res) => {
     try {
-        const payload = { ...req.body, submittedBy: req.user.id, manager: req.user.role === "Admin" ? (req.body.manager || null) : null, registrationStatus: req.user.role === "Admin" ? "Approved" : "Pending", approvedBy: req.user.role === "Admin" ? req.user.id : null, approvedAt: req.user.role === "Admin" ? new Date() : null };
+        const vehicleNumber = String(req.body.vehicleNumber || "").trim().toUpperCase();
+        if (!vehicleNumber) return res.status(400).json({ message: "Vehicle registration number is required." });
+
+        // Check case-insensitively so a differently-cased or padded plate cannot
+        // reach MongoDB's unique index and produce an unreadable E11000 message.
+        const escapedNumber = vehicleNumber.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const existingVehicle = await Vehicle.findOne({ vehicleNumber: { $regex: `^${escapedNumber}$`, $options: "i" } }).select("_id vehicleNumber manager submittedBy registrationStatus");
+        if (existingVehicle) {
+            return res.status(409).json({
+                code: "VEHICLE_ALREADY_EXISTS",
+                message: `Vehicle ${vehicleNumber} is already registered. Ask Admin to locate the existing vehicle and assign or transfer it to your Manager account. Do not register it again.`
+            });
+        }
+
+        const payload = {
+            ...req.body,
+            vehicleNumber,
+            submittedBy: req.user.id,
+            manager: req.user.role === "Admin" ? (req.body.manager || null) : null,
+            registrationStatus: req.user.role === "Admin" ? "Approved" : "Pending",
+            approvedBy: req.user.role === "Admin" ? req.user.id : null,
+            approvedAt: req.user.role === "Admin" ? new Date() : null
+        };
         if (req.user.role !== "Admin") delete payload.status;
-        const newVehicle = new Vehicle(payload);
-        const savedVehicle = await newVehicle.save();
+        const savedVehicle = await new Vehicle(payload).save();
         res.status(201).json({
-            message: "Vehicle added successfully!",
+            message: req.user.role === "Admin" ? "Vehicle added successfully." : "Vehicle submitted for Admin approval.",
             vehicle: savedVehicle
         });
     } catch (error) {
-        res.status(500).json({
-            message: error.message
-        });
+        if (error.code === 11000 && (error.keyPattern?.vehicleNumber || error.keyValue?.vehicleNumber)) {
+            return res.status(409).json({ message: "This vehicle registration number is already registered. Ask Admin to locate and assign the existing vehicle." });
+        }
+        console.error("POST /vehicles failed:", error);
+        res.status(400).json({ message: error.message || "Unable to register vehicle." });
     }
 });
 app.post("/vehicles/:vehicleId/assign-driver", protect, authorize("manage_vehicles"), async (req, res) => {
