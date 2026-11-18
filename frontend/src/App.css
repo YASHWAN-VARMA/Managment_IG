@@ -575,3 +575,5 @@ small,
   justify-content: center;
   gap: 10px;
 }
+
+.vehicle-history{margin-top:22px;border-top:1px solid var(--border,#383838);padding-top:16px}.vehicle-history h3{font-size:16px;margin:16px 0 8px}.vehicle-history p{color:var(--muted,#A6A6A6)}.history-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border,#383838)}.history-row span{color:var(--muted,#A6A6A6);text-align:right}

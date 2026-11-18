@@ -1,0 +1,3 @@
+const mongoose = require("mongoose");
+const schema = new mongoose.Schema({ vehicle:{type:mongoose.Schema.Types.ObjectId,ref:"Vehicle",required:true}, fromManager:{type:mongoose.Schema.Types.ObjectId,ref:"User",default:null}, toManager:{type:mongoose.Schema.Types.ObjectId,ref:"User",default:null}, changedBy:{type:mongoose.Schema.Types.ObjectId,ref:"User",required:true}, action:{type:String,enum:["Approved","Rejected","Transferred"],required:true}, note:{type:String,trim:true,default:""} },{timestamps:true});
+module.exports=mongoose.model("VehicleManagerHistory",schema);

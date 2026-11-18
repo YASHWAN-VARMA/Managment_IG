@@ -26,6 +26,7 @@ const tripSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     status: {
         type: String,
         enum: ["Ongoing", "Completed", "Cancelled"],

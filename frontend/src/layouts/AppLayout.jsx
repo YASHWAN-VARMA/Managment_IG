@@ -18,11 +18,12 @@ export default function AppLayout() {
   const [search, setSearch] = useState("");
   const { user, logout } = useAuth();
   const location = useLocation();
-  const current = navItems.find((item) => item[1] === location.pathname)?.[0] || "Overview";
+  const visibleNav = user?.role === "Admin" ? [...navItems.slice(0,1), ["Approvals", "/approvals", Bell], ...navItems.slice(1)] : navItems;
+  const current = visibleNav.find((item) => item[1] === location.pathname)?.[0] || "Overview";
 
   const nav = <><div className="sidebar-brand"><Brand /></div><nav className="sidebar-nav">
     <span className="nav-caption">WORKSPACE</span>
-    {navItems.map(([label, path, Icon]) => <NavLink key={path} to={path} end={path === "/"} onClick={() => setDrawerOpen(false)} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+    {visibleNav.map(([label, path, Icon]) => <NavLink key={path} to={path} end={path === "/"} onClick={() => setDrawerOpen(false)} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
       <Icon size={18} strokeWidth={1.8}/><span>{label}</span>
     </NavLink>)}
   </nav><div className="sidebar-bottom"><div className="connection-dot"/> API connection configured in environment</div></>;
@@ -42,7 +43,7 @@ export default function AppLayout() {
       </header>
       <main className="page-content"><Outlet /></main>
       <nav className="mobile-bottom-nav">
-        {navItems.slice(0,4).map(([label,path,Icon]) => <NavLink key={path} to={path} end={path === "/"}><Icon size={19}/><span>{label}</span></NavLink>)}
+        {visibleNav.slice(0,4).map(([label,path,Icon]) => <NavLink key={path} to={path} end={path === "/"}><Icon size={19}/><span>{label}</span></NavLink>)}
       </nav>
     </div>
   </div>;

@@ -18,6 +18,7 @@ const Document = require("./models/Document");
 const upload = require("./middleware/upload");
 const cors = require("cors");
 const userManagementRoutes = require("./routes/userManagement");
+const vehicleApprovalRoutes = require("./routes/vehicleApprovals");
 const {
     exportToExcel,
     exportMultipleSheets
@@ -41,10 +42,14 @@ const {
 app.use(express.json());
 app.use(cookieParser());
 app.use("/admin", userManagementRoutes);
+app.use("/admin", vehicleApprovalRoutes);
+app.use("/", vehicleApprovalRoutes);
 app.get("/vehicles", protect, authorize("manage_vehicles"), async (req, res) => {
     try {
-        const vehicles = await Vehicle.find()
-            .populate("currentDriver", "name phone");
+        const scope = req.user.role === "Admin" ? {} : { $or: [{ manager: req.user.id }, { submittedBy: req.user.id }] };
+        const vehicles = await Vehicle.find(scope)
+            .populate("currentDriver", "name phone")
+            .populate("manager", "name");
         res.status(200).json({
             count: vehicles.length,
             vehicles: vehicles
@@ -55,57 +60,20 @@ app.get("/vehicles", protect, authorize("manage_vehicles"), async (req, res) => 
         });
     }
 });
-app.delete("/vehicles/:id", async (req, res) => {
-    try {
-        const deletedVehicle = await Vehicle.findByIdAndDelete(
-            req.params.id
-        );
-        if (!deletedVehicle) {
-            return res.status(404).json({
-                message: "Vehicle not found"
-            });
-        }
-        res.status(200).json({
-            message: "Vehicle deleted successfully",
-            vehicle: deletedVehicle
-        });
-    } catch (error) {
-        res.status(500).json({
-            message: error.message
-        });
-    }
+
+app.put("/vehicles/:id", protect, authorize("manage_vehicles"), async (req,res)=>{
+ try {const v=await Vehicle.findById(req.params.id);if(!v)return res.status(404).json({message:"Vehicle not found."});if(req.user.role!=="Admin"&&String(v.manager||"")!==req.user.id)return res.status(403).json({message:"You cannot edit this vehicle."});
+ const allowed={vehicleNumber:req.body.vehicleNumber,vehicleType:req.body.vehicleType,model:req.body.model,status:req.body.status};for(const [k,val] of Object.entries(allowed))if(val!==undefined)v[k]=val;await v.save();res.json({message:"Vehicle updated successfully.",vehicle:v});
+ }catch(e){res.status(400).json({message:e.code===11000?"Vehicle registration number already exists.":e.message});}
 });
-app.put("/vehicles/:id", protect, authorize("manage_vehicles"), async (req, res) => {
-    try {
-        const updatedVehicle = await Vehicle.findByIdAndUpdate(
-            req.params.id,
-            req.body,
-            {
-                new: true,
-                runValidators: true
-            }
-        );
-        if (!updatedVehicle) {
-            return res.status(404).json({
-                message: "Vehicle not found"
-            });
-        }
-        res.status(200).json({
-            message: "Vehicle updated successfully!",
-            vehicle: updatedVehicle
-        });
-    } catch (error) {
-        res.status(500).json({
-            message: error.message
-        });
-    }
-});
-app.delete("/vehicles/:id", protect, authorize("manage_vehicles"), async (req, res) => {
-    res.send("Updating Vehicle" + req.params.id);
+app.delete("/vehicles/:id", protect, authorize("manage_vehicles"), async (req,res)=>{
+ try {const v=await Vehicle.findById(req.params.id);if(!v)return res.status(404).json({message:"Vehicle not found."});if(req.user.role!=="Admin"&&String(v.manager||"")!==req.user.id)return res.status(403).json({message:"You cannot delete this vehicle."});
+ const Trip=require("./models/Trip");const used=await Trip.exists({vehicle:v._id});if(used)return res.status(409).json({message:"This vehicle has trip history. Set it to Inactive instead of deleting it."});await v.deleteOne();res.json({message:"Vehicle deleted."});}catch(e){res.status(500).json({message:"Unable to delete vehicle."});}
 });
 app.post("/drivers", protect, authorize("manage_drivers"), async (req, res) => {
     try{
-    const newDriver = new Driver(req.body);
+    const payload = { ...req.body, registeredBy: req.user.id };
+    const newDriver = new Driver(payload);
     const savedDriver = await newDriver.save();
     res.status(201).json({
             message: "Driver added successfully!",
@@ -131,9 +99,14 @@ app.get("/drivers", protect, authorize("manage_drivers"), async (req, res) => {
         });
     }
 });
+app.patch("/drivers/:id/status", protect, authorize("manage_drivers"), async (req,res)=>{
+ try { if(typeof req.body.isActive!=="boolean")return res.status(400).json({message:"isActive must be true or false."});const d=await Driver.findById(req.params.id);if(!d)return res.status(404).json({message:"Driver not found."});d.status=req.body.isActive?"Active":"Inactive";await d.save();res.json({message:d.status==="Active"?"Driver activated.":"Driver deactivated. Historical records are preserved.",driver:d});}catch(e){res.status(500).json({message:"Unable to update driver status."});}
+});
 app.post("/vehicles", protect, authorize("manage_vehicles"), async (req, res) => {
     try {
-        const newVehicle = new Vehicle(req.body);
+        const payload = { ...req.body, submittedBy: req.user.id, manager: req.user.role === "Admin" ? (req.body.manager || null) : null, registrationStatus: req.user.role === "Admin" ? "Approved" : "Pending", approvedBy: req.user.role === "Admin" ? req.user.id : null, approvedAt: req.user.role === "Admin" ? new Date() : null };
+        if (req.user.role !== "Admin") delete payload.status;
+        const newVehicle = new Vehicle(payload);
         const savedVehicle = await newVehicle.save();
         res.status(201).json({
             message: "Vehicle added successfully!",
@@ -145,7 +118,7 @@ app.post("/vehicles", protect, authorize("manage_vehicles"), async (req, res) =>
         });
     }
 });
-app.post("/vehicles/:vehicleId/assign-driver", async (req, res) => {
+app.post("/vehicles/:vehicleId/assign-driver", protect, authorize("manage_vehicles"), async (req, res) => {
     try {
         const { vehicleId } = req.params;
         const { driverId } = req.body;
@@ -156,6 +129,9 @@ app.post("/vehicles/:vehicleId/assign-driver", async (req, res) => {
                 message: "Vehicle or driver not found"
             });
         }
+        if (req.user.role !== "Admin" && String(vehicle.manager || "") !== req.user.id) return res.status(403).json({ message: "You cannot assign a driver to this vehicle." });
+        if (vehicle.registrationStatus !== "Approved" || vehicle.status !== "Active") return res.status(409).json({ message: "Only approved, active vehicles can be assigned." });
+        if (driver.status !== "Active") return res.status(409).json({ message: "This driver is inactive." });
         if (vehicle.currentDriver) {
             await DriverAssignment.findOneAndUpdate(
                 {
@@ -170,7 +146,8 @@ app.post("/vehicles/:vehicleId/assign-driver", async (req, res) => {
         }
         const assignment = new DriverAssignment({
             vehicle: vehicleId,
-            driver: driverId
+            driver: driverId,
+            assignedBy: req.user.id
         });
         await assignment.save();
         vehicle.currentDriver = driverId;
@@ -187,8 +164,11 @@ app.post("/vehicles/:vehicleId/assign-driver", async (req, res) => {
         });
     }
 });
-app.get("/vehicles/:vehicleId/assignments", async (req, res) => {
+app.get("/vehicles/:vehicleId/assignments", protect, authorize("manage_vehicles"), async (req, res) => {
     try {
+        const targetVehicle = await Vehicle.findById(req.params.vehicleId);
+        if (!targetVehicle) return res.status(404).json({ message: "Vehicle not found." });
+        if (req.user.role !== "Admin" && String(targetVehicle.manager || "") !== req.user.id) return res.status(403).json({ message: "You cannot view this vehicle." });
         const assignments = await DriverAssignment.find({
             vehicle: req.params.vehicleId
         })
@@ -207,7 +187,13 @@ app.get("/vehicles/:vehicleId/assignments", async (req, res) => {
 });
 app.post("/trips", protect, authorize("manage_trips"), async (req, res) => {
     try {
-        const newTrip = new Trip(req.body);
+        const vehicle = await Vehicle.findById(req.body.vehicle);
+        const driver = await Driver.findById(req.body.driver);
+        if (!vehicle || !driver) return res.status(404).json({ message: "Vehicle or driver not found." });
+        if (vehicle.registrationStatus !== "Approved" || vehicle.status !== "Active") return res.status(409).json({ message: "Vehicle must be approved and active before creating a trip." });
+        if (driver.status !== "Active") return res.status(409).json({ message: "Driver is inactive." });
+        if (req.user.role !== "Admin" && String(vehicle.manager || "") !== req.user.id) return res.status(403).json({ message: "This vehicle is not assigned to your account." });
+        const newTrip = new Trip({ ...req.body, createdBy: req.user.id });
         const savedTrip = await newTrip.save();
         res.status(201).json({
             message: "Trip created successfully",
@@ -221,8 +207,9 @@ app.post("/trips", protect, authorize("manage_trips"), async (req, res) => {
 });
 app.get("/trips", protect, authorize("manage_trips"), async (req, res) => {
     try {
-        const trips = await Trip.find()
-            .populate("vehicle", "vehicleNumber model")
+        const tripFilter = req.user.role === "Admin" ? {} : { vehicle: { $in: await Vehicle.find({ manager: req.user.id }).distinct("_id") } };
+        const trips = await Trip.find(tripFilter)
+            .populate("vehicle", "vehicleNumber model manager")
             .populate("driver", "name phone");
         res.status(200).json({
             count: trips.length,
@@ -234,19 +221,13 @@ app.get("/trips", protect, authorize("manage_trips"), async (req, res) => {
         });
     }
 });
-app.put("/trips/:id/complete", async (req, res) => {
+app.put("/trips/:id/complete", protect, authorize("manage_trips"), async (req, res) => {
     try {
-        const updatedTrip = await Trip.findByIdAndUpdate(
-            req.params.id,
-            {
-                status: "Completed",
-                endDate: new Date()
-            },
-            {
-                new: true,
-                runValidators: true
-            }
-        );
+        const existingTrip = await Trip.findById(req.params.id).populate("vehicle", "manager");
+        if (!existingTrip) return res.status(404).json({ message: "Trip not found" });
+        if (req.user.role !== "Admin" && String(existingTrip.vehicle?.manager || "") !== req.user.id) return res.status(403).json({ message: "You cannot update this trip." });
+        existingTrip.status = "Completed"; existingTrip.endDate = new Date(); await existingTrip.save();
+        const updatedTrip = existingTrip;
         if (!updatedTrip) {
             return res.status(404).json({
                 message: "Trip not found"
@@ -262,18 +243,13 @@ app.put("/trips/:id/complete", async (req, res) => {
         });
     }
 });
-app.put("/trips/:id/cancel", async (req, res) => {
+app.put("/trips/:id/cancel", protect, authorize("manage_trips"), async (req, res) => {
     try {
-        const trip = await Trip.findByIdAndUpdate(
-            req.params.id,
-            {
-                status: "Cancelled"
-            },
-            {
-                new: true,
-                runValidators: true
-            }
-        );
+        const existingTrip = await Trip.findById(req.params.id).populate("vehicle", "manager");
+        if (!existingTrip) return res.status(404).json({ message: "Trip not found" });
+        if (req.user.role !== "Admin" && String(existingTrip.vehicle?.manager || "") !== req.user.id) return res.status(403).json({ message: "You cannot update this trip." });
+        existingTrip.status = "Cancelled"; await existingTrip.save();
+        const trip = existingTrip;
         if (!trip) {
             return res.status(404).json({
                 message: "Trip not found"
@@ -289,19 +265,14 @@ app.put("/trips/:id/cancel", async (req, res) => {
         });
     }
 });
-app.get("/trips/:id", async (req, res) => {
+app.get("/trips/:id", protect, authorize("manage_trips"), async (req, res) => {
     try {
         const trip = await Trip.findById(req.params.id)
-            .populate("vehicle", "vehicleNumber model")
+            .populate("vehicle", "vehicleNumber model manager")
             .populate("driver", "name phone licenseNumber");
-        if (!trip) {
-            return res.status(404).json({
-                message: "Trip not found"
-            });
-        }
-        res.status(200).json({
-            trip
-        });
+        if (!trip) return res.status(404).json({ message: "Trip not found" });
+        if (req.user.role !== "Admin" && String(trip.vehicle?.manager || "") !== req.user.id) return res.status(403).json({ message: "You cannot view this trip." });
+        res.status(200).json({ trip });
     } catch (error) {
         res.status(500).json({
             message: error.message
@@ -372,7 +343,7 @@ app.get("/fuel-entries", protect, authorize("manage_finances"), async (req, res)
         });
     }
 });
-app.get("/vehicles/:vehicleId/fuel-entries", async (req, res) => {
+app.get("/vehicles/:vehicleId/fuel-entries", protect, authorize("manage_finances"), async (req, res) => {
     try {
         const fuelEntries = await FuelEntry.find({
             vehicle: req.params.vehicleId
@@ -390,7 +361,7 @@ app.get("/vehicles/:vehicleId/fuel-entries", async (req, res) => {
         });
     }
 });
-app.get("/drivers/:driverId/advances", async (req, res) => {
+app.get("/drivers/:driverId/advances", protect, authorize("manage_finances"), async (req, res) => {
     try {
         const advances = await Advance.find({
             driver: req.params.driverId
@@ -410,7 +381,7 @@ app.get("/drivers/:driverId/advances", async (req, res) => {
         });
     }
 });
-app.get("/drivers/:driverId/advance-summary", async (req, res) => {
+app.get("/drivers/:driverId/advance-summary", protect, authorize("manage_finances"), async (req, res) => {
     try {
         const summary = await Advance.aggregate([
             {
@@ -441,7 +412,7 @@ app.get("/drivers/:driverId/advance-summary", async (req, res) => {
         });
     }
 });
-app.get("/vehicles/:vehicleId/fuel-summary", async (req, res) => {
+app.get("/vehicles/:vehicleId/fuel-summary", protect, authorize("manage_finances"), async (req, res) => {
     try {
         const summary = await FuelEntry.aggregate([
             {

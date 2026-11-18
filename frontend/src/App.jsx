@@ -9,6 +9,7 @@ import Finance from "./pages/Finance.jsx";
 import Documents from "./pages/Documents.jsx";
 import Reports from "./pages/Reports.jsx";
 import Settings from "./pages/Settings.jsx";
+import Approvals from "./pages/Approvals.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 
 function ProtectedLayout() {
@@ -24,6 +25,7 @@ export default function App() {
       <Route element={<ProtectedLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="/vehicles" element={<Vehicles />} />
+        <Route path="/approvals" element={<Approvals />} />
         <Route path="/drivers" element={<Drivers />} />
         <Route path="/trips" element={<Trips />} />
         <Route path="/finance" element={<Finance />} />

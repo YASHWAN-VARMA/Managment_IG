@@ -16,6 +16,9 @@ const driverSchema = new mongoose.Schema({
     address: {
         type: String
     },
+    driverType: { type: String, enum: ["Permanent", "Temporary", "One-day"], default: "Permanent" },
+    availabilityEndAt: { type: Date, default: null },
+    registeredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     status: {
         type: String,
         enum: ["Active", "Inactive"],

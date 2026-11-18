@@ -11,6 +11,8 @@ const driverAssignmentSchema = new mongoose.Schema({
         ref: "Driver",
         required: true
     },
+    assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    assignmentNote: { type: String, trim: true, default: "" },
     assignedDate: {
         type: Date,
         default: Date.now
