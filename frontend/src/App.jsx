@@ -10,6 +10,7 @@ import Documents from "./pages/Documents.jsx";
 import Reports from "./pages/Reports.jsx";
 import Settings from "./pages/Settings.jsx";
 import Approvals from "./pages/Approvals.jsx";
+import ManagerDetails from "./pages/ManagerDetails.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 
 function ProtectedLayout() {
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/documents" element={<Documents />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/managers/:id" element={<ManagerDetails />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

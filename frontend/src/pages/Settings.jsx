@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { api } from "../services/api.js";
@@ -12,6 +13,7 @@ const blankForm = { name: "", email: "", phone: "", password: "" };
 
 export default function Settings() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = user?.role === "Admin";
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -155,7 +157,11 @@ export default function Settings() {
             const isCurrent = String(account.id || account._id) === String(user?.id || user?._id);
             const isAdminAccount = account.role === "Admin";
             return <tr key={account.id || account._id}>
-              <td className="cell-strong">{account.name}{isCurrent ? " (You)" : ""}</td>
+              <td className="cell-strong">{account.role === "Manager" ? (
+                <button type="button" className="manager-name-link" onClick={() => navigate(`/managers/${account.id || account._id}`)}>
+                  {account.name}
+                </button>
+              ) : account.name}{isCurrent ? " (You)" : ""}</td>
               <td>{account.email}</td>
               <td>{account.phone || "—"}</td>
               <td>{account.role}</td>

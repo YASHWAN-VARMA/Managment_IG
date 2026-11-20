@@ -2,6 +2,10 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const RefreshToken = require("../models/RefreshToken");
+const Vehicle = require("../models/Vehicle");
+const Driver = require("../models/Driver");
+const DriverAssignment = require("../models/DriverAssignment");
+const Trip = require("../models/Trip");
 const protect = require("../middleware/auth");
 
 const router = express.Router();
@@ -40,6 +44,60 @@ router.get("/users", async (req, res) => {
     res.json({ count: users.length, users: users.map((u) => ({ ...u, id: u._id })) });
   } catch (error) {
     res.status(500).json({ message: "Unable to load users." });
+  }
+});
+
+// Manager fleet overview: vehicles, drivers registered by or assigned within the Manager's fleet,
+// plus assignment and trip history. This route is Admin-only because router.use enforces it above.
+router.get("/managers/:id/fleet", async (req, res) => {
+  try {
+    const manager = await User.findOne({ _id: req.params.id, role: "Manager" })
+      .select("name email phone role isActive createdAt")
+      .lean();
+    if (!manager) return res.status(404).json({ message: "Manager account not found." });
+
+    const vehicles = await Vehicle.find({ manager: manager._id })
+      .populate("currentDriver", "name phone driverType status")
+      .populate("submittedBy", "name")
+      .sort({ createdAt: -1 })
+      .lean();
+    const vehicleIds = vehicles.map((vehicle) => vehicle._id);
+
+    const assignments = await DriverAssignment.find({ vehicle: { $in: vehicleIds } })
+      .populate("vehicle", "vehicleNumber model")
+      .populate("driver", "name phone licenseNumber driverType status")
+      .sort({ assignedDate: -1 })
+      .lean();
+    const assignedDriverIds = assignments.map((item) => item.driver?._id).filter(Boolean);
+    const drivers = await Driver.find({
+      $or: [
+        { registeredBy: manager._id },
+        ...(assignedDriverIds.length ? [{ _id: { $in: assignedDriverIds } }] : [])
+      ]
+    }).sort({ createdAt: -1 }).lean();
+    const trips = await Trip.find({ vehicle: { $in: vehicleIds } })
+      .populate("vehicle", "vehicleNumber")
+      .populate("driver", "name")
+      .sort({ startDate: -1 })
+      .lean();
+
+    res.json({
+      manager: { ...manager, id: manager._id },
+      vehicles,
+      drivers,
+      assignments,
+      counts: {
+        vehicles: vehicles.length,
+        drivers: drivers.length,
+        trips: trips.length,
+        activeVehicles: vehicles.filter((v) => v.status === "Active").length
+      },
+      recentTrips: trips.slice(0, 10)
+    });
+  } catch (error) {
+    if (error.name === "CastError") return res.status(400).json({ message: "Invalid Manager ID." });
+    console.error("GET /admin/managers/:id/fleet failed:", error);
+    res.status(500).json({ message: "Unable to load this Manager's fleet." });
   }
 });
 
